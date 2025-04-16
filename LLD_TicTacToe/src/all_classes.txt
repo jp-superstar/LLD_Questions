@@ -1,0 +1,234 @@
+public class AIPlayerFactory implements PlayerAbstractFactory {
+    private final symbol symbol;
+
+    public AIPlayerFactory(symbol symbol) {
+        this.symbol = symbol;
+    }
+
+    @Override
+    public Player createPlayer() {
+        return new PlayerImpl(symbol,  new AIStyle());
+    }
+}
+import java.util.Random;
+
+public class AIStyle implements PlayStrategy {
+    private final Random random = new Random();
+
+    @Override
+    public Coordinate makeMove(Board board, symbol symbol) {
+        int x, y;
+        int size = board.getSize();
+
+        do {
+            x = random.nextInt(size);
+            y = random.nextInt(size);
+        } while (!board.isCellEmpty(x, y));
+
+        return new Coordinate(x, y);
+    }
+}
+public class Board {
+    private symbol[][] grid;
+    private int size;
+
+    // Default constructor for 3x3 board
+    public Board() {
+        this(3);  // delegate to the other constructor
+    }
+
+    // Constructor for custom n x n board
+    public Board(int n) {
+        this.size = n;
+        grid = new symbol[n][n];
+
+        // Initialize all cells to EMPTY
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                grid[i][j] = symbol.EMPTY;
+            }
+        }
+    }
+    public boolean isCellEmpty(int x, int y) {
+        return grid[x][y] == symbol.EMPTY;
+    }
+
+    public void setCell(int x, int y, symbol s) {
+        grid[x][y] = s;
+    }
+
+    // Utility method to print the board
+    public void printBoard() {
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                switch (grid[i][j]) {
+                    case X -> System.out.print(" X ");
+                    case O -> System.out.print(" O ");
+                    case EMPTY -> System.out.print(" . ");
+                }
+            }
+            System.out.println();
+        }
+    }
+
+    public int getSize() {
+        return this.size;
+    }
+
+    public symbol[][] getGrid() {
+        return grid;
+    }
+
+    public void printBoard() {
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                System.out.print(grid[i][j] + " ");
+            }
+            System.out.println();
+        }
+    }
+}
+public class BoardUtils {
+    public static boolean checkWin(Board board, symbol symbol) {
+        int n = board.getSize();
+        symbol[][] grid = board.getGrid();
+
+        // Check rows and columns
+        for (int i = 0; i < n; i++) {
+            if (checkLine(grid[i], symbol)) return true;
+            if (checkColumn(grid, i, symbol)) return true;
+        }
+
+        // Check diagonals
+        return checkDiagonal(grid, symbol) || checkAntiDiagonal(grid, symbol);
+    }
+
+    private static boolean checkLine(symbol[] row, symbol symbol) {
+        for (symbol s : row) if (s != symbol) return false;
+        return true;
+    }
+
+    private static boolean checkColumn(symbol[][] grid, int col, symbol symbol) {
+        for (symbol[] row : grid) if (row[col] != symbol) return false;
+        return true;
+    }
+
+    private static boolean checkDiagonal(symbol[][] grid, symbol symbol) {
+        for (int i = 0; i < grid.length; i++) if (grid[i][i] != symbol) return false;
+        return true;
+    }
+
+    private static boolean checkAntiDiagonal(symbol[][] grid, symbol symbol) {
+        int n = grid.length;
+        for (int i = 0; i < n; i++) if (grid[i][n - 1 - i] != symbol) return false;
+        return true;
+    }
+}
+public class Coordinate {
+    public final int x;
+    public final int y;
+
+    public Coordinate(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
+}
+public interface GameState {
+    void play(TicTacToeGame game);
+}
+public class Main {
+    public static void main(String[] args) {
+
+        TicTacToeGame game = new TicTacToeGame();
+
+    }
+}
+public class OTurnState implements GameState {
+    @Override
+    public void play(TicTacToeGame game) {
+        Player playerO = game.getPlayerO();
+        playerO.move(game.getBoard());
+
+        if (game.checkWinner(symbol.O)) {
+            System.out.println("Player O wins!");
+            game.getBoard().printBoard();
+            game.setGameOver(true);
+        } else {
+            game.setState(new XTurnState());
+        }
+    }
+}public interface PlayStrategy {
+    Coordinate makeMove(Board board, symbol symbol);
+}
+public interface Player {
+    symbol getSignature();  // Symbol is your enum type
+    void move(Board board);
+}
+public interface PlayerAbstractFactory {
+    Player createPlayer();
+}
+public class PlayerImpl implements Player {
+    private final symbol signature;
+    private final PlayStrategy strategy;
+
+    public PlayerImpl(symbol s, PlayStrategy strategy) {
+        this.signature = s;
+        this.strategy = strategy;
+    }
+
+    @Override
+    public symbol getSignature() {
+        return signature;
+    }
+    public void move(Board board) {
+        Coordinate coord = strategy.makeMove(board, signature);
+        int x = coord.x, y = coord.y;;
+        if (board.isCellEmpty(x, y)) {
+            board.setCell(x, y, signature);
+            System.out.println("Player " + signature + " placed at (" + x + ", " + y + ")");
+        } else {
+            System.out.println("Cell (" + x + ", " + y + ") is already occupied!");
+        }
+    }
+
+}
+public class TicTacToeGame {
+
+    public static Board gameBoard = new Board();
+    PlayerAbstractFactory factoryX = new AIPlayerFactory(symbol.X);
+    PlayerAbstractFactory factoryO = new AIPlayerFactory(symbol.O);
+    Player playerX = factoryX.createPlayer();
+    Player playerO = factoryO.createPlayer();
+    private GameState currentState;
+    private boolean isGameOver = false;
+    public TicTacToeGame(Player playerX, Player playerO, int boardSize) {
+        this.currentState = new XTurnState();
+        this.isGameOver = false;
+    }
+    public Board getBoard() { return TicTacToeGame.gameBoard; }
+    public Player getPlayerX() { return this.playerX; }
+    public Player getPlayerO() { return this.playerO; }
+    public void setState(GameState state) { this.currentState = state; }
+    public void setGameOver(boolean over) { this.isGameOver = over; }
+
+    public boolean checkWinner(symbol symbol) {
+        return BoardUtils.checkWin(gameBoard, symbol);
+    }
+}
+public class XTurnState implements GameState {
+    @Override
+    public void play(TicTacToeGame game) {
+        Player playerX = game.getPlayerX();
+        playerX.move(game.getBoard());
+
+        if (game.checkWinner(symbol.X)) {
+            System.out.println("Player X wins!");
+            game.getBoard().printBoard();
+            game.setGameOver(true);
+        } else {
+            game.setState(new OTurnState());
+        }
+    }
+}public enum symbol {
+    X, O, EMPTY;
+}
